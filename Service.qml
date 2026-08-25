@@ -46,13 +46,20 @@ Item {
   }
 
   // ------------------------------------------------------------ fetch
+  // Hard cap on bytes accepted from the network per fetch. The tracker
+  // payload is ~6 KB; 256 KB is ~40x headroom. curl aborts known-oversize
+  // responses (--max-filesize) and `head -c` truncates streamed ones, so
+  // the long-lived shell never buffers more than the cap.
   property bool fetchInFlight: false
+  readonly property int fetchCapBytes: 262144
 
   function refresh() {
     if (fetchInFlight) return
     fetchInFlight = true
     status = "loading"
-    curlProc.command = ["curl", "-fsS", "--max-time", "15", dataUrl]
+    curlProc.command = ["bash", "-c",
+      "set -o pipefail; curl -fsS --proto =https --max-time 15 --max-filesize "
+      + root.fetchCapBytes + " " + root.dataUrl + " | head -c " + root.fetchCapBytes]
     curlProc.running = true
   }
 
@@ -91,6 +98,13 @@ Item {
   // ------------------------------------------------------------ persistence
   // Cache the last good payload so the bar is instant at shell start even
   // before the first network round-trip completes.
+  //
+  // The cache path is predictable, so reads are guarded: the file must be a
+  // regular file (no symlinks/FIFOs), owned by this user, and within the
+  // same byte cap as network reads. The guard re-verifies via
+  // /proc/self/fd after open (same-descriptor check) to close the stat/open
+  // race, and the whole read runs under `timeout` so a pathological file
+  // can never stall the shell.
   property bool cacheLoaded: false
 
   FileView {
@@ -99,8 +113,34 @@ Item {
     watchChanges: false
     atomicWrites: true
     printErrors: false
-    onLoaded: root.hydrate(text())
-    onLoadFailed: root.hydrate("")
+  }
+
+  Process {
+    id: cacheReadProc
+
+    stdout: StdioCollector {
+      onStreamFinished: root.hydrate(text)
+    }
+
+    onExited: {
+      // Empty output (missing/guard-rejected cache) must still unblock boot.
+      Qt.callLater(function() { if (!root.cacheLoaded) root.hydrate("") })
+    }
+  }
+
+  function readCache() {
+    cacheReadProc.command = ["timeout", "2", "bash", "-c",
+      "f=" + JSON.stringify(root.statePath) + "; cap=" + root.fetchCapBytes + "; " +
+      "[ ! -L \"$f\" ] && [ -f \"$f\" ] || exit 0; " +
+      "[ \"$(stat -c %F \"$f\")\" = \"regular file\" ] || exit 0; " +
+      "[ \"$(stat -c %u \"$f\")\" = \"$(id -u)\" ] || exit 0; " +
+      "[ \"$(stat -c %s \"$f\")\" -le \"$cap\" ] || exit 0; " +
+      "exec 3<\"$f\"; " +
+      "[ \"$(stat -c %F -L /proc/self/fd/3)\" = \"regular file\" ] || exit 0; " +
+      "[ \"$(stat -c %u -L /proc/self/fd/3)\" = \"$(id -u)\" ] || exit 0; " +
+      "[ \"$(stat -c %s -L /proc/self/fd/3)\" -le \"$cap\" ] || exit 0; " +
+      "cat <&3"]
+    cacheReadProc.running = true
   }
 
   Timer {
@@ -151,7 +191,7 @@ Item {
 
   Component.onCompleted: {
     ensureDirProc.running = true
-    Qt.callLater(function() { cacheFile.reload() })
+    Qt.callLater(root.readCache)
   }
 
   // ------------------------------------------------------------ cadence

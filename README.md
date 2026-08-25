@@ -46,6 +46,19 @@ omarchy-shell io.github.argusguardian.freemodels refresh   # force refresh
 - `curl` (fetch), `wl-copy` (copy model id), `xdg-open` (links) — all present
   on a stock Omarchy install. No API keys; only public endpoints.
 
+## Security notes
+
+- Network responses are hard-capped at 256 KB (`curl --max-filesize` plus a
+  `head -c` truncation with `pipefail`), so the long-lived shell never
+  buffers more than the cap; HTTPS-only via `--proto =https`.
+- The cache file at `~/.local/state/omarchy/free-ai-models-cache.json` is
+  read through a guard: regular file only (symlinks/FIFOs rejected), owner
+  must match the effective uid, size capped at 256 KB, re-verified on the
+  open descriptor (`/proc/self/fd`) to close the stat/open race, and the
+  whole read runs under `timeout 2` so it can never stall the shell.
+- Writes use atomic rename (`FileView` `atomicWrites`). No elevated
+  permissions anywhere.
+
 ## Remove
 
 ```sh
