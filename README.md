@@ -56,6 +56,11 @@ omarchy-shell io.github.argusguardian.freemodels refresh   # force refresh
   must match the effective uid, size capped at 256 KB, re-verified on the
   open descriptor (`/proc/self/fd`) to close the stat/open race, and the
   whole read runs under `timeout 2` so it can never stall the shell.
+- The `FileView` handle used for cache writes is declared `preload: false`.
+  Quickshell preloads its target path by default, which would read the
+  predictable cache file into the long-lived shell outside the guard, so it
+  is kept strictly write-only and never loads the path. All bytes entering
+  shell memory come from one of the two audited paths above.
 - Writes use atomic rename (`FileView` `atomicWrites`). No elevated
   permissions anywhere.
 

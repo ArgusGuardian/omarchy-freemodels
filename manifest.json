@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "io.github.argusguardian.freemodels",
   "name": "Free AI Models",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "author": "ArgusGuardian",
   "license": "MIT",
   "description": "Tracks free AI models from the ClawLabsAI/free-ai-models daily tracker. Bar pill with count, browsable panel, click-to-open provider, right-click to copy model id.",

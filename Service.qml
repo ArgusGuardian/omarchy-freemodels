@@ -105,11 +105,19 @@ Item {
   // /proc/self/fd after open (same-descriptor check) to close the stat/open
   // race, and the whole read runs under `timeout` so a pathological file
   // can never stall the shell.
+  //
+  // cacheFile is WRITE-ONLY and must never load the path itself: Quickshell
+  // FileView preloads its target by default, which would pull attacker-
+  // reachable bytes at this predictable path straight into the long-lived
+  // shell, bypassing the guard entirely. preload:false keeps every byte that
+  // enters shell memory on one of the two audited paths (capped curl fetch,
+  // guarded descriptor read).
   property bool cacheLoaded: false
 
   FileView {
     id: cacheFile
     path: root.statePath
+    preload: false
     watchChanges: false
     atomicWrites: true
     printErrors: false
