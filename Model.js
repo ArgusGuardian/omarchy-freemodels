@@ -34,6 +34,24 @@ var MODALITY_GLYPHS = {
   files: "\uF016"         // fa-file_o
 }
 
+// Hard cap on entries ingested from either source (network payload or cache
+// file). The panel renders an eager Repeater, so a hostile payload must not
+// be able to instantiate thousands of delegate trees in the long-lived
+// shell. The tracker currently publishes ~40 entries; 200 is generous.
+var MAX_MODELS = 200
+
+// Neutralize QML's Text.AutoText rich-text heuristic for upstream strings.
+// A value starting with optional whitespace plus "<" is rendered as rich
+// text (HTML), where <img src=...> silently turns labels into network
+// beacons and arbitrary markup spoofs trusted chrome. Prefixing U+200B
+// keeps the visible string identical while forcing plain-text rendering,
+// including on host-owned surfaces this plugin does not control (bar
+// tooltip, notification daemon).
+function sanitize(s) {
+  if (typeof s !== "string") return ""
+  return /^\s*</.test(s) ? "\u200B" + s : s
+}
+
 // Normalize a raw tracker entry into the shape the UI reads.
 // Returns null for entries missing an id or name.
 function normalize(raw) {
@@ -52,11 +70,11 @@ function normalize(raw) {
     : (id.indexOf("/") !== -1 ? "https://openrouter.ai/" + id : "")
   return {
     id: id,
-    name: name,
-    provider: typeof raw.provider === "string" ? raw.provider : "",
+    name: sanitize(name),
+    provider: sanitize(typeof raw.provider === "string" ? raw.provider : ""),
     context: formatContext(raw.context_window),
     maxOutput: formatContext(raw.max_output),
-    rateLimit: typeof raw.rate_limit === "string" ? raw.rate_limit : "",
+    rateLimit: sanitize(typeof raw.rate_limit === "string" ? raw.rate_limit : ""),
     glyphs: glyphs.join(" "),
     url: url
   }
@@ -67,7 +85,7 @@ function parsePayload(text) {
   var obj = JSON.parse(text)
   var list = Array.isArray(obj.models) ? obj.models : []
   var out = []
-  for (var i = 0; i < list.length; i++) {
+  for (var i = 0; i < list.length && out.length < MAX_MODELS; i++) {
     var m = normalize(list[i])
     if (m) out.push(m)
   }
@@ -76,7 +94,7 @@ function parsePayload(text) {
     ok: true,
     models: out,
     total: Number(obj.total_free_models) > 0 ? Number(obj.total_free_models) : out.length,
-    updatedAt: typeof obj.updated_at === "string" ? obj.updated_at : ""
+    updatedAt: sanitize(typeof obj.updated_at === "string" ? obj.updated_at : "")
   }
 }
 

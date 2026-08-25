@@ -152,6 +152,7 @@ Panel {
               width: parent.width - Style.space(12)
               horizontalAlignment: Text.AlignHCenter
               wrapMode: Text.WordWrap
+              textFormat: Text.PlainText
               text: !root.svc ? "" : "Update failed: " + (root.svc.errorMsg || "unknown") + " \u00B7 showing cached data"
               color: root.fg
               font.family: root.fontFamily
@@ -228,6 +229,7 @@ Panel {
                     anchors.rightMargin: Style.space(10)
                     anchors.verticalCenter: parent.verticalCenter
                     elide: Text.ElideRight
+                    textFormat: Text.PlainText
                     text: modelData.name
                     color: root.fg
                     font.family: root.fontFamily
@@ -239,6 +241,7 @@ Panel {
                     id: ctxBadge
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
+                    textFormat: Text.PlainText
                     text: Model.GLYPH.memory + " " + modelData.context
                     color: root.dim
                     font.family: root.fontFamily
@@ -252,6 +255,7 @@ Panel {
                   spacing: Style.space(6)
 
                   Text {
+                    textFormat: Text.PlainText
                     text: modelData.provider
                     color: Qt.darker(root.fg, 1.25)
                     font.family: root.fontFamily
@@ -259,6 +263,7 @@ Panel {
                   }
 
                   Text {
+                    textFormat: Text.PlainText
                     text: modelData.glyphs
                     color: Color.accent
                     opacity: 0.85
@@ -268,6 +273,7 @@ Panel {
 
                   Text {
                     visible: modelData.rateLimit !== "" && modelData.rateLimit !== "varies"
+                    textFormat: Text.PlainText
                     text: Model.GLYPH.gauge + " " + modelData.rateLimit
                     color: root.dim
                     font.family: root.fontFamily

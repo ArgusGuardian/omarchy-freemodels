@@ -91,7 +91,7 @@ Item {
       scheduleSave()
     } catch (e) {
       status = "error"
-      errorMsg = String(e.message || e)
+      errorMsg = Model.sanitize(String(e.message || e))
     }
   }
 
@@ -138,7 +138,7 @@ Item {
 
   function readCache() {
     cacheReadProc.command = ["timeout", "2", "bash", "-c",
-      "f=" + JSON.stringify(root.statePath) + "; cap=" + root.fetchCapBytes + "; " +
+      "f=\"$1\"; cap=" + root.fetchCapBytes + "; " +
       "[ ! -L \"$f\" ] && [ -f \"$f\" ] || exit 0; " +
       "[ \"$(stat -c %F \"$f\")\" = \"regular file\" ] || exit 0; " +
       "[ \"$(stat -c %u \"$f\")\" = \"$(id -u)\" ] || exit 0; " +
@@ -147,7 +147,7 @@ Item {
       "[ \"$(stat -c %F -L /proc/self/fd/3)\" = \"regular file\" ] || exit 0; " +
       "[ \"$(stat -c %u -L /proc/self/fd/3)\" = \"$(id -u)\" ] || exit 0; " +
       "[ \"$(stat -c %s -L /proc/self/fd/3)\" -le \"$cap\" ] || exit 0; " +
-      "cat <&3"]
+      "cat <&3", "freemodels-cache-guard", root.statePath]
     cacheReadProc.running = true
   }
 
@@ -167,10 +167,19 @@ Item {
     if (cacheLoaded) return
     var data = {}
     try { data = JSON.parse(raw || "{}") } catch (e) { data = {} }
-    if (Array.isArray(data.models) && data.models.length > 0) {
-      models = data.models
-      total = Number(data.total) > 0 ? Number(data.total) : data.models.length
-      updatedAt = typeof data.updatedAt === "string" ? data.updatedAt : ""
+    // Cached entries re-run the exact contract the network path uses:
+    // normalize type-checks every field, drops malformed shapes, runs the
+    // rich-text sanitizer over display strings, and the row cap applies
+    // no matter what a planted or corrupted cache file contains.
+    var list = Array.isArray(data.models)
+      ? data.models.map(Model.normalize).filter(Boolean).slice(0, Model.MAX_MODELS)
+      : []
+    if (list.length > 0) {
+      var stored = Number(data.total)
+      models = list
+      total = isFinite(stored) && stored > 0 && stored <= 1000000
+        ? Math.round(stored) : list.length
+      updatedAt = typeof data.updatedAt === "string" ? Model.sanitize(data.updatedAt) : ""
       fetchedAt = Number(data.fetchedAt) || 0
       errorMsg = ""
       // Show cached data immediately; the refresh below replaces it.
@@ -224,7 +233,11 @@ Item {
 
   // ------------------------------------------------------------ actions
   function openUrl(url) {
-    if (typeof url !== "string" || url === "") return
+    if (typeof url !== "string") return
+    // Scheme allowlist: xdg-open dispatches any registered desktop handler,
+    // so tracker-controlled values must never reach file://, javascript:, or
+    // custom app deep links. Only ordinary web pages may be opened.
+    if (!/^https?:\/\//i.test(url)) return
     Quickshell.execDetached(["xdg-open", url])
   }
 
@@ -234,7 +247,7 @@ Item {
   }
 
   function copyModelId(entry) {
-    if (!entry || entry.id === "") return
+    if (!entry || typeof entry.id !== "string" || entry.id === "") return
     Quickshell.execDetached(["wl-copy", entry.id])
     notify("Free AI Models", "Copied " + entry.id)
   }

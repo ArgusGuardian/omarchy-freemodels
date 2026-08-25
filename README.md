@@ -61,6 +61,15 @@ omarchy-shell io.github.argusguardian.freemodels refresh   # force refresh
   predictable cache file into the long-lived shell outside the guard, so it
   is kept strictly write-only and never loads the path. All bytes entering
   shell memory come from one of the two audited paths above.
+- All service-rendered strings are plain-text only (`textFormat:
+  Text.PlainText`) and pass an ingest-time sanitizer, so a hostile tracker
+  entry cannot flip QML's rich-text heuristic (no HTML rendering, no
+  `<img>`-driven remote fetches from labels).
+- Rows are capped at 200 on both the network and cache paths, and cached
+  entries re-run the exact same normalization/type-check contract as fresh
+  fetches before anything reaches the UI.
+- Click targets are restricted to http(s) URLs; `xdg-open` never receives
+  tracker-controlled `file://` or custom application URI schemes.
 - Writes use atomic rename (`FileView` `atomicWrites`). No elevated
   permissions anywhere.
 
