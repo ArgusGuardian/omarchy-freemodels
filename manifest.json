@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "io.github.argusguardian.freemodels",
+  "name": "Free AI Models",
+  "version": "1.0.0",
+  "author": "ArgusGuardian",
+  "license": "MIT",
+  "description": "Tracks free AI models from the ClawLabsAI/free-ai-models daily tracker. Bar pill with count, browsable panel, click-to-open provider, right-click to copy model id.",
+  "kinds": ["service", "bar-widget"],
+  "keepLoaded": true,
+  "entryPoints": {
+    "service": "Service.qml",
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Free AI Models",
+    "description": "Count of currently-free AI models with a browsable list panel",
+    "category": "Info",
+    "allowMultiple": false,
+    "defaultSection": "center"
+  }
+}
