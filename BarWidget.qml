@@ -71,9 +71,9 @@ BarWidget {
   IpcHandler {
     target: "io.github.argusguardian.freemodels.widget"
 
-    function open(): void { root.open() }
-    function close(): void { root.close() }
-    function toggle(): void { root.togglePanel() }
+    function open() { root.open() }
+    function close() { root.close() }
+    function toggle() { root.togglePanel() }
   }
 
   WidgetButton {
